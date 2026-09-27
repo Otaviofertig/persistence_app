@@ -4,9 +4,13 @@
 // Provam que o app funciona SEM device físico, cobrindo as duas camadas:
 //
 //   1) CAMADA DE DADOS (SQLite real, em memória via `sqflite_common_ffi`):
-//      testa o CRUD do JogoRepository e o mapeamento do modelo.
+//      testa o CRUD do JogoRepository, a ordenação (ORDER BY) e o
+//      mapeamento do modelo.
 //
-//   2) CAMADA DE UI (FutureBuilder + estados): usa um repositório FAKE em
+//   2) SHAREDPREFERENCES (mock em memória): testa a nova preferência de
+//      ORDENAÇÃO (padrão, gravação e leitura).
+//
+//   3) CAMADA DE UI (FutureBuilder + estados): usa um repositório FAKE em
 //      memória (Dart puro). Fazemos isso porque o SQLite via FFI usa I/O
 //      assíncrono real, incompatível com o "fake async" do testWidgets —
 //      então injetamos um fake, que é a prática recomendada para testar UI.
@@ -15,12 +19,15 @@
 // =============================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:persistence_app/app.dart';
 import 'package:persistence_app/data/i_jogo_repository.dart';
 import 'package:persistence_app/data/jogo_repository.dart';
+import 'package:persistence_app/data/ordem_preferences.dart';
 import 'package:persistence_app/models/jogo_model.dart';
+import 'package:persistence_app/models/ordem_lista.dart';
 
 /// Repositório FAKE em memória — implementa o mesmo contrato do real.
 /// Resolve os Futures instantaneamente, o que funciona com o testWidgets.
@@ -36,10 +43,23 @@ class FakeJogoRepository implements IJogoRepository {
   }
 
   @override
-  Future<List<JogoModel>> getAll() async {
-    final copia = [
-      ..._dados
-    ]..sort((a, b) => a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase()));
+  Future<List<JogoModel>> getAll({
+    OrdemLista ordem = OrdemLista.tituloAz,
+  }) async {
+    int porTitulo(JogoModel a, JogoModel b) =>
+        a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase());
+    final copia = [..._dados];
+    switch (ordem) {
+      case OrdemLista.tituloAz:
+        copia.sort(porTitulo);
+      case OrdemLista.tituloZa:
+        copia.sort((a, b) => porTitulo(b, a));
+      case OrdemLista.maiorNota:
+        copia.sort((a, b) {
+          final porNota = b.nota.compareTo(a.nota);
+          return porNota != 0 ? porNota : porTitulo(a, b);
+        });
+    }
     return copia;
   }
 
@@ -134,6 +154,39 @@ void main() {
       expect(lista.first.genero, 'RPG');
       expect(lista.first.nota, 9);
     });
+
+    test('getAll respeita a ordenação pedida (ORDER BY)', () async {
+      final repo = JogoRepository();
+      for (final j in await repo.getAll()) {
+        await repo.delete(j.id!);
+      }
+
+      await repo.insert(const JogoModel(
+          titulo: 'celeste', plataforma: 'PC', genero: 'Plataforma', nota: 9));
+      await repo.insert(const JogoModel(
+          titulo: 'Among Us', plataforma: 'PC', genero: 'Social', nota: 7));
+      await repo.insert(const JogoModel(
+          titulo: 'Zelda', plataforma: 'Switch', genero: 'Aventura', nota: 10));
+      await repo.insert(const JogoModel(
+          titulo: 'Braid', plataforma: 'PC', genero: 'Puzzle', nota: 9));
+
+      List<String> titulos(List<JogoModel> l) =>
+          l.map((j) => j.titulo).toList();
+
+      // A -> Z (sem diferenciar maiúsculas/minúsculas).
+      expect(titulos(await repo.getAll(ordem: OrdemLista.tituloAz)),
+          ['Among Us', 'Braid', 'celeste', 'Zelda']);
+      // Z -> A.
+      expect(titulos(await repo.getAll(ordem: OrdemLista.tituloZa)),
+          ['Zelda', 'celeste', 'Braid', 'Among Us']);
+      // Maior nota; empate desempata pelo título.
+      expect(titulos(await repo.getAll(ordem: OrdemLista.maiorNota)),
+          ['Zelda', 'Braid', 'celeste', 'Among Us']);
+
+      for (final j in await repo.getAll()) {
+        await repo.delete(j.id!);
+      }
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -157,9 +210,36 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // 2) CAMADA DE UI — com repositório FAKE
+  // 2) SHAREDPREFERENCES — nova preferência de ORDENAÇÃO
+  // -------------------------------------------------------------------------
+  group('OrdemPreferences (SharedPreferences)', () {
+    test('primeira execução usa Título (A → Z)', () async {
+      SharedPreferences.setMockInitialValues({});
+      expect(await OrdemPreferences().loadOrdem(), OrdemLista.tituloAz);
+    });
+
+    test('salva e recarrega a ordenação escolhida', () async {
+      SharedPreferences.setMockInitialValues({});
+      await OrdemPreferences().saveOrdem(OrdemLista.maiorNota);
+
+      // Uma NOVA instância lê o mesmo valor (como ao reabrir o app).
+      expect(await OrdemPreferences().loadOrdem(), OrdemLista.maiorNota);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('ordem_lista'), 'maiorNota');
+    });
+
+    test('valor inválido salvo cai no padrão', () async {
+      SharedPreferences.setMockInitialValues({'ordem_lista': 'xyz'});
+      expect(await OrdemPreferences().loadOrdem(), OrdemLista.tituloAz);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 3) CAMADA DE UI — com repositório FAKE
   // -------------------------------------------------------------------------
   group('UI (FutureBuilder)', () {
+    setUp(() => SharedPreferences.setMockInitialValues({}));
+
     testWidgets('mostra estado vazio quando não há jogos', (tester) async {
       await tester.pumpWidget(ColecaoJogosApp(
         temaInicialEscuro: false,
@@ -341,6 +421,61 @@ void main() {
 
       expect(find.text('Portal 2'), findsNothing);
       expect(find.text('Nenhum jogo salvo offline'), findsOneWidget);
+    });
+
+    testWidgets('menu de ordenação reordena a lista e persiste a escolha',
+        (tester) async {
+      final fake = FakeJogoRepository();
+      await fake.insert(const JogoModel(
+          titulo: 'Asteroids', plataforma: 'Atari', genero: 'Arcade', nota: 6));
+      await fake.insert(const JogoModel(
+          titulo: 'Zelda', plataforma: 'Switch', genero: 'Aventura', nota: 10));
+
+      await tester.pumpWidget(ColecaoJogosApp(
+        temaInicialEscuro: false,
+        repository: fake,
+      ));
+      await tester.pumpAndSettle();
+
+      // Padrão: A -> Z.
+      expect(find.text('Ordenado por: Título (A → Z)'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('Asteroids')).dy,
+          lessThan(tester.getTopLeft(find.text('Zelda')).dy));
+
+      // Escolhe "Z -> A" no menu da AppBar.
+      await tester.tap(find.byTooltip('Ordenar lista'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(
+          CheckedPopupMenuItem<OrdemLista>, 'Título (Z → A)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ordenado por: Título (Z → A)'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('Zelda')).dy,
+          lessThan(tester.getTopLeft(find.text('Asteroids')).dy));
+
+      // A escolha foi gravada no SharedPreferences.
+      expect(await OrdemPreferences().loadOrdem(), OrdemLista.tituloZa);
+    });
+
+    testWidgets('abre o app com a ordenação salva anteriormente',
+        (tester) async {
+      final fake = FakeJogoRepository();
+      await fake.insert(const JogoModel(
+          titulo: 'Asteroids', plataforma: 'Atari', genero: 'Arcade', nota: 6));
+      await fake.insert(const JogoModel(
+          titulo: 'Zelda', plataforma: 'Switch', genero: 'Aventura', nota: 10));
+
+      // Simula o main(): ordem lida do SharedPreferences ao reabrir o app.
+      await tester.pumpWidget(ColecaoJogosApp(
+        temaInicialEscuro: false,
+        ordemInicial: OrdemLista.maiorNota,
+        repository: fake,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ordenado por: Maior nota primeiro'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('Zelda')).dy,
+          lessThan(tester.getTopLeft(find.text('Asteroids')).dy));
     });
   });
 }

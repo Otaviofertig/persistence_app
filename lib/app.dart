@@ -3,15 +3,20 @@
 // -----------------------------------------------------------------------------
 // Configura o MaterialApp e gerencia o estado do TEMA (claro/escuro),
 // persistindo cada alternância no SharedPreferences via ThemePreferences.
+// Repassa à HomePage a ORDENAÇÃO salva (lida no main()).
 // =============================================================================
 import 'package:flutter/material.dart';
 
 import 'data/i_jogo_repository.dart';
 import 'data/theme_preferences.dart';
+import 'models/ordem_lista.dart';
 import 'ui/home_page.dart';
 
 class ColecaoJogosApp extends StatefulWidget {
   final bool temaInicialEscuro;
+
+  /// Ordenação da lista salva no SharedPreferences.
+  final OrdemLista ordemInicial;
 
   /// Repositório injetável (opcional). Usado nos testes de UI.
   final IJogoRepository? repository;
@@ -19,6 +24,7 @@ class ColecaoJogosApp extends StatefulWidget {
   const ColecaoJogosApp({
     super.key,
     required this.temaInicialEscuro,
+    this.ordemInicial = OrdemLista.tituloAz,
     this.repository,
   });
 
@@ -64,6 +70,7 @@ class _ColecaoJogosAppState extends State<ColecaoJogosApp> {
       home: HomePage(
         isDarkMode: _isDarkMode,
         onAlternarTema: _alternarTema,
+        ordemInicial: widget.ordemInicial,
         repository: widget.repository,
       ),
     );

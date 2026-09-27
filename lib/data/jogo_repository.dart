@@ -6,6 +6,7 @@
 // fonte de dados (ex.: API, Hive) sem tocar na interface.
 // =============================================================================
 import '../models/jogo_model.dart';
+import '../models/ordem_lista.dart';
 import 'database_helper.dart';
 import 'i_jogo_repository.dart';
 
@@ -23,16 +24,31 @@ class JogoRepository implements IJogoRepository {
     return db.insert(DatabaseHelper.tabelaJogos, jogo.toMap());
   }
 
-  /// READ — lê todos os jogos ordenados por título.
+  /// READ — lê todos os jogos na ordem pedida (ORDER BY feito pelo SQLite).
   @override
-  Future<List<JogoModel>> getAll() async {
+  Future<List<JogoModel>> getAll({
+    OrdemLista ordem = OrdemLista.tituloAz,
+  }) async {
     final db = await _helper.database;
     final linhas = await db.query(
       DatabaseHelper.tabelaJogos,
-      orderBy: 'titulo COLLATE NOCASE ASC',
+      orderBy: _orderBy(ordem),
     );
     // Mapeia cada linha (Map) para um objeto do domínio.
     return linhas.map(JogoModel.fromMap).toList();
+  }
+
+  /// Traduz a ordenação do domínio para a cláusula ORDER BY do SQL.
+  static String _orderBy(OrdemLista ordem) {
+    switch (ordem) {
+      case OrdemLista.tituloAz:
+        return 'titulo COLLATE NOCASE ASC';
+      case OrdemLista.tituloZa:
+        return 'titulo COLLATE NOCASE DESC';
+      case OrdemLista.maiorNota:
+        // Empate na nota -> desempata pelo título.
+        return 'nota DESC, titulo COLLATE NOCASE ASC';
+    }
   }
 
   /// UPDATE — atualiza um jogo existente (pelo id). Retorna nº de linhas.

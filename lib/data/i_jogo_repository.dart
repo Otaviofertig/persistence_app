@@ -7,10 +7,11 @@
 //   • testar a UI com um repositório "fake" em memória.
 // =============================================================================
 import '../models/jogo_model.dart';
+import '../models/ordem_lista.dart';
 
 abstract class IJogoRepository {
   Future<int> insert(JogoModel jogo);
-  Future<List<JogoModel>> getAll();
+  Future<List<JogoModel>> getAll({OrdemLista ordem = OrdemLista.tituloAz});
   Future<int> update(JogoModel jogo);
   Future<int> delete(int id);
 }
