@@ -1,89 +1,114 @@
-# 🏛️ Portal Cidadão: Políticos Favoritos (Offline)
+# 🎮 Minha Coleção de Jogos (Offline)
 
-Aplicativo Flutter didático que demonstra, na prática, **Persistência de Dados Local** combinando duas tecnologias:
+Aplicativo Flutter para montar a sua **coleção pessoal de jogos** — com título, plataforma, gênero e a sua nota de 0 a 10 — tudo salvo **offline** no dispositivo.
+
+Feito a partir do app de exemplo [ADSSTech/persistence_app](https://github.com/ADSSTech/persistence_app) (Tutoria 4 — Persistência), trocando o domínio de "políticos" por **jogos** e acrescentando uma **nova preferência persistida**: a **ordenação da lista**.
 
 | Tecnologia | Para quê usamos | Pacote |
 |---|---|---|
-| **SQLite** | Dados estruturados: o CRUD de políticos (tabela relacional) | [`sqflite`](https://pub.dev/packages/sqflite) + [`path`](https://pub.dev/packages/path) |
-| **SharedPreferences** | Configuração chave-valor: o tema (claro/escuro) | [`shared_preferences`](https://pub.dev/packages/shared_preferences) |
-
-O usuário pode **cadastrar, listar, pesquisar, editar e remover** políticos monitorados — tudo salvo **offline** no dispositivo.
+| **SQLite** | Dados estruturados: o CRUD de jogos (tabela `jogos`) | [`sqflite`](https://pub.dev/packages/sqflite) + [`path`](https://pub.dev/packages/path) |
+| **SharedPreferences** | Configurações chave-valor: **tema** (claro/escuro) e **ordenação da lista** | [`shared_preferences`](https://pub.dev/packages/shared_preferences) |
 
 ---
 
 ## 🎬 Demonstração
 
-O GIF abaixo mostra o app rodando em um emulador Android: cadastro de dois políticos, pesquisa, edição (alterando o partido), alternância de tema (claro/escuro) e remoção com confirmação — tudo persistido no SQLite local.
-
+<!-- Salve o GIF do app rodando em docs/demo.gif e remova este comentário:
 <p align="center">
-  <img src="docs/demo.gif" alt="Demonstração do Portal Cidadão" width="300"/>
+  <img src="docs/demo.gif" alt="Demonstração da Coleção de Jogos" width="300"/>
 </p>
+-->
 
 ---
 
 ## 📱 O que o app faz
 
-1. **Lista** os políticos salvos no banco local (nome, partido, UF).
-2. **Cadastra** um novo político por um formulário (BottomSheet) com validação.
-3. **Pesquisa** por nome, partido ou UF (filtro em tempo real).
-4. **Edita** um político (toque no lápis ou no card) — mesmo formulário, pré-preenchido.
-5. **Remove** um político (com diálogo de confirmação).
-6. **Alterna o tema** claro/escuro pela AppBar — e **lembra a escolha** na próxima abertura (SharedPreferences).
-7. Mostra um **indicador "SQLite ativo"** na AppBar e **SnackBars** de feedback ao salvar/editar/remover.
+1. **Lista** os jogos salvos no banco local (título, plataforma, gênero e nota ⭐).
+2. **Cadastra** um novo jogo por um formulário (BottomSheet) com validação — a nota precisa estar entre 0 e 10.
+3. **Pesquisa** por título, plataforma ou gênero (filtro em tempo real).
+4. **Edita** um jogo (toque no lápis ou no card) — mesmo formulário, pré-preenchido.
+5. **Remove** um jogo (com diálogo de confirmação).
+6. **Ordena** a lista pelo menu da AppBar (ícone ↕): **Título A → Z**, **Título Z → A** ou **Maior nota primeiro** — e **lembra a escolha** ao fechar e reabrir o app. ⭐ *nova preferência*
+7. **Alterna o tema** claro/escuro pela AppBar — e também **lembra a escolha**.
+8. Mostra um indicador **"SQLite ativo"** na AppBar, a ordenação ativa acima da lista e **SnackBars** de feedback ao salvar/editar/remover.
 
-> O app cobre o **CRUD completo**: Create (cadastrar), Read (listar/pesquisar), Update (editar) e Delete (remover).
+O avatar de cada card mostra a **sigla da plataforma** (ex.: "Nintendo Switch" → **NS**, "PC" → **PC**).
 
 ### Estados da tela (via `FutureBuilder`)
 
 | Estado | O que aparece |
 |---|---|
 | ⏳ Carregando | `CircularProgressIndicator()` |
-| 🤖 Vazio | Ícone amigável + "Nenhum político salvo offline" |
-| 📋 Com dados | `ListView` de `Card`s com avatar da sigla do partido e botão de lixeira |
+| 🎮 Vazio | Ícone de controle + "Nenhum jogo salvo offline" |
+| 📋 Com dados | `ListView` de `Card`s com sigla da plataforma, nota e botões de editar/remover |
 | ⚠️ Erro | Mensagem de erro amigável |
+
+---
+
+## ⭐ A nova SharedPreference: ordenação da lista
+
+Além do tema (que já existia), o app salva **qual ordenação o usuário escolheu**:
+
+| Chave | Tipo | Valores | Padrão |
+|---|---|---|---|
+| `is_dark_mode` | `bool` | `true` / `false` | `false` (claro) |
+| `ordem_lista` | `String` | `tituloAz`, `tituloZa`, `maiorNota` | `tituloAz` |
+
+Como funciona:
+
+1. **`models/ordem_lista.dart`** — `enum OrdemLista` com as três opções e o texto mostrado no menu.
+2. **`data/ordem_preferences.dart`** — `OrdemPreferences` com `loadOrdem()` / `saveOrdem()`, seguindo o mesmo padrão do `ThemePreferences`. O enum é gravado como `String` (o `name`), porque o SharedPreferences só guarda tipos primitivos. Um valor desconhecido volta para o padrão.
+3. **`main.dart`** — antes do `runApp`, carrega o tema **e** a ordenação salvos.
+4. **`ui/home_page.dart`** — o `PopupMenuButton` da AppBar troca a ordenação, **grava no SharedPreferences** e relê o banco.
+5. **`data/jogo_repository.dart`** — `getAll(ordem: ...)` traduz a escolha para o `ORDER BY` do SQL:
+
+| Opção | `ORDER BY` |
+|---|---|
+| Título (A → Z) | `titulo COLLATE NOCASE ASC` |
+| Título (Z → A) | `titulo COLLATE NOCASE DESC` |
+| Maior nota primeiro | `nota DESC, titulo COLLATE NOCASE ASC` |
 
 ---
 
 ## 🧱 Arquitetura (em camadas)
 
-O código **não** fica todo em um arquivo. Cada responsabilidade tem seu lugar — como em um projeto profissional:
-
 ```
 lib/
-├── main.dart                       # Bootstrap: carrega o tema salvo e sobe o app
+├── main.dart                       # Bootstrap: carrega tema + ordenação salvos e sobe o app
 ├── app.dart                        # MaterialApp + gestão do tema (claro/escuro)
 │
 ├── models/
-│   └── politico_model.dart         # Entidade IMUTÁVEL. toMap() / fromMap()
+│   ├── jogo_model.dart             # Entidade IMUTÁVEL. toMap() / fromMap() / copyWith()
+│   └── ordem_lista.dart            # Opções de ordenação (valor da nova preferência)
 │
 ├── data/                           # Camada de dados (persistência)
 │   ├── database_helper.dart        # Singleton do SQLite (abre banco + cria schema)
-│   ├── i_politico_repository.dart  # Contrato (interface) do repositório
-│   ├── politico_repository.dart    # CRUD (isola o SQL da UI)
-│   └── theme_preferences.dart      # Wrapper do SharedPreferences (tema)
+│   ├── i_jogo_repository.dart      # Contrato (interface) do repositório
+│   ├── jogo_repository.dart        # CRUD + ORDER BY (isola o SQL da UI)
+│   ├── theme_preferences.dart      # SharedPreferences: tema
+│   └── ordem_preferences.dart      # SharedPreferences: ordenação da lista
 │
 └── ui/                             # Camada de apresentação
-    ├── home_page.dart              # Tela principal (FutureBuilder + busca)
+    ├── home_page.dart              # Tela principal (FutureBuilder + busca + ordenação)
     └── widgets/
-        ├── politico_card.dart      # Card/ListTile de um político
-        ├── politico_form.dart      # Formulário (BottomSheet) com validação
+        ├── jogo_card.dart          # Card/ListTile de um jogo
+        ├── jogo_form.dart          # Formulário (BottomSheet) com validação
         └── empty_state.dart        # Estado vazio amigável
 ```
 
-### Por que separar assim?
+- **`DatabaseHelper` (Singleton):** garante **uma única conexão** com o arquivo `colecao_jogos.db`.
+- **`Repository`:** a tela **não sabe** que existe SQL — pede "insere", "lista", "atualiza", "remove". Isso permite testar a UI com um repositório fake.
+- **`Model` imutável:** `toMap()` grava no banco; `fromMap()` reconstrói o objeto ao ler.
 
-- **`DatabaseHelper` (Singleton):** garante **uma única conexão** com o arquivo do banco. Abrir o mesmo banco várias vezes em paralelo pode **corromper** o arquivo — o Singleton evita isso.
-- **`Repository`:** a tela **não sabe** que existe SQL. Ela pede "insere", "lista", "remove". Isso permite **testar a UI** com um repositório fake e trocar a fonte de dados sem mexer na interface.
-- **`Model` imutável:** `toMap()` grava no banco; `fromMap()` reconstrói o objeto ao ler. É a ponte objeto ⇄ linha da tabela.
-
-### Esquema da tabela `politicos`
+### Esquema da tabela `jogos`
 
 ```sql
-CREATE TABLE politicos (
-  id      INTEGER PRIMARY KEY AUTOINCREMENT,
-  nome    TEXT NOT NULL,
-  partido TEXT NOT NULL,
-  uf      TEXT NOT NULL
+CREATE TABLE jogos (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  titulo     TEXT NOT NULL,
+  plataforma TEXT NOT NULL,
+  genero     TEXT NOT NULL,
+  nota       INTEGER NOT NULL CHECK (nota BETWEEN 0 AND 10)
 );
 ```
 
@@ -91,68 +116,32 @@ CREATE TABLE politicos (
 
 ## ▶️ Como rodar
 
-### Pré-requisitos
-- [Flutter 3.10+](https://docs.flutter.dev/get-started/install) instalado (`flutter doctor` sem erros).
-- Um emulador Android, simulador iOS **ou** dispositivo físico conectado.
-
-### Passos
+Pré-requisitos: [Flutter 3.10+](https://docs.flutter.dev/get-started/install) (`flutter doctor` sem erros) e um emulador Android, simulador iOS ou dispositivo físico.
 
 ```bash
-# 1. Instale as dependências
 flutter pub get
-
-# 2. Veja os dispositivos disponíveis
 flutter devices
-
-# 3. Rode o app (Android/iOS é o alvo recomendado — o SQLite é nativo lá)
-flutter run
+flutter run            # ou: flutter run -d <id-do-dispositivo>
 ```
 
-Para escolher um dispositivo específico:
-
-```bash
-flutter run -d <id-do-dispositivo>   # ex.: flutter run -d emulator-5554
-```
-
-> **Observação sobre plataformas:** o `sqflite` roda nativamente em **Android** e **iOS**. Em desktop/web ele precisa do pacote auxiliar `sqflite_common_ffi` (usado apenas nos testes deste projeto). Para a demonstração em sala, use **Android ou iOS**.
+> O `sqflite` roda nativamente em **Android** e **iOS**. Em desktop/web ele precisa do `sqflite_common_ffi` (usado aqui só nos testes).
 
 ---
 
-## ✅ Como testar (sem precisar de celular)
-
-O projeto acompanha testes automatizados que provam o funcionamento **sem device físico** (o SQLite roda em memória via `sqflite_common_ffi`):
+## ✅ Testes e análise estática
 
 ```bash
-flutter test
+flutter analyze     # No issues found!
+flutter test        # 00:04 +16: All tests passed!
 ```
 
-Saída esperada:
+Os 16 testes cobrem:
 
-```
-00:02 +8: All tests passed!
-```
-
-Os testes cobrem:
-1. **CRUD real no SQLite** (insere → lista → atualiza → remove).
-2. **Mapeamento do modelo** (`toMap`/`fromMap` simétricos).
-3. **UI**: estado vazio, lista com dados, filtro de busca, cadastro e edição (com repositório fake).
-
-Para checar o código estático (lint):
-
-```bash
-flutter analyze     # deve retornar: No issues found!
-```
-
----
-
-## 🧭 Roteiro de leitura sugerido (para estudo)
-
-1. `models/politico_model.dart` — como mapeamos objeto ⇄ linha da tabela.
-2. `data/database_helper.dart` — Singleton + abertura do banco + criação do schema.
-3. `data/politico_repository.dart` — as operações CRUD isoladas da UI.
-4. `data/theme_preferences.dart` — leitura/escrita de configuração no SharedPreferences.
-5. `main.dart` + `app.dart` — carregamento do tema salvo e montagem do app.
-6. `ui/home_page.dart` — o `FutureBuilder` desenhando a lista e reagindo aos estados.
+1. **CRUD real no SQLite** (em memória via `sqflite_common_ffi`): insere → lista → atualiza → remove.
+2. **Ordenação no SQLite**: A → Z, Z → A e maior nota (com desempate pelo título).
+3. **Modelo**: `toMap`/`fromMap` simétricos.
+4. **Nova SharedPreference**: padrão na 1ª execução, salvar e recarregar, valor inválido volta ao padrão.
+5. **UI** (com repositório fake): estado vazio, lista com dados, busca, cadastro, validação da nota, edição, remoção com confirmação, menu de ordenação (reordena **e** grava a preferência) e abertura do app com a ordenação salva.
 
 ---
 
@@ -162,12 +151,12 @@ flutter analyze     # deve retornar: No issues found!
 dependencies:
   sqflite: ^2.3.3+1          # Banco relacional embarcado (SQLite)
   path: ^1.9.0               # Monta o caminho do arquivo do banco por SO
-  shared_preferences: ^2.2.3 # Armazenamento chave-valor (tema)
+  shared_preferences: ^2.2.3 # Armazenamento chave-valor (tema + ordenação)
 
 dev_dependencies:
-  sqflite_common_ffi: ^2.3.3 # SQLite em memória para os testes (desktop/CI)
+  sqflite_common_ffi: ^2.4.0+3 # SQLite em memória para os testes
 ```
 
 ---
 
-Projeto acadêmico — SENAI, Desenvolvimento Mobile.
+Projeto acadêmico — SENAI, Desenvolvimento Mobile · Tutoria 4 (Persistência).
