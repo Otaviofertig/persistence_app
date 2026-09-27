@@ -3,23 +3,23 @@
 // -----------------------------------------------------------------------------
 // Orquestra a UI: dispara a leitura do banco (Future) e a desenha com
 // FutureBuilder, abre o formulário, filtra a busca e remove registros.
-// Toda persistência é delegada ao PoliticoRepository — a tela não conhece SQL.
+// Toda persistência é delegada ao JogoRepository — a tela não conhece SQL.
 // =============================================================================
 import 'package:flutter/material.dart';
 
-import '../data/i_politico_repository.dart';
-import '../data/politico_repository.dart';
-import '../models/politico_model.dart';
+import '../data/i_jogo_repository.dart';
+import '../data/jogo_repository.dart';
+import '../models/jogo_model.dart';
 import 'widgets/empty_state.dart';
-import 'widgets/politico_card.dart';
-import 'widgets/politico_form.dart';
+import 'widgets/jogo_card.dart';
+import 'widgets/jogo_form.dart';
 
 class HomePage extends StatefulWidget {
   final bool isDarkMode;
   final Future<void> Function() onAlternarTema;
 
   /// Repositório injetável. Em produção usa o SQLite; em testes, um fake.
-  final IPoliticoRepository? repository;
+  final IJogoRepository? repository;
 
   const HomePage({
     super.key,
@@ -33,11 +33,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late final IPoliticoRepository _repository =
-      widget.repository ?? PoliticoRepository();
+  late final IJogoRepository _repository =
+      widget.repository ?? JogoRepository();
 
   // O Future observado pelo FutureBuilder. Trocá-lo força uma releitura.
-  late Future<List<PoliticoModel>> _futurePoliticos;
+  late Future<List<JogoModel>> _futureJogos;
 
   String _termoBusca = '';
   final TextEditingController _buscaController = TextEditingController();
@@ -45,7 +45,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _futurePoliticos = _repository.getAll(); // primeira leitura
+    _futureJogos = _repository.getAll(); // primeira leitura
   }
 
   @override
@@ -57,11 +57,11 @@ class _HomePageState extends State<HomePage> {
   /// Reatribui o Future -> o FutureBuilder relê o banco.
   void _recarregar() {
     // IMPORTANTE: usar corpo de bloco `{ }` e NÃO `=>`.
-    // Com arrow (`=> _futurePoliticos = ...`) o callback RETORNA o valor da
+    // Com arrow (`=> _futureJogos = ...`) o callback RETORNA o valor da
     // atribuição (um Future), e o setState rejeita callbacks que retornam
     // Future — lançando exceção e deixando de aplicar a atualização.
     setState(() {
-      _futurePoliticos = _repository.getAll();
+      _futureJogos = _repository.getAll();
     });
   }
 
@@ -78,29 +78,29 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _abrirFormulario() async {
-    final novo = await PoliticoForm.mostrar(context);
+    final novo = await JogoForm.mostrar(context);
     if (novo == null) return;
     await _repository.insert(novo);
-    _mostrarSnack('✅ "${novo.nome}" salvo no banco offline.');
+    _mostrarSnack('✅ "${novo.titulo}" salvo no banco offline.');
     _recarregar();
   }
 
   /// Abre o formulário em modo EDIÇÃO (pré-preenchido) e aplica o UPDATE.
-  Future<void> _editar(PoliticoModel politico) async {
-    final editado = await PoliticoForm.mostrar(context, politico: politico);
+  Future<void> _editar(JogoModel jogo) async {
+    final editado = await JogoForm.mostrar(context, jogo: jogo);
     if (editado == null) return;
     await _repository.update(editado);
-    _mostrarSnack('✏️ "${editado.nome}" atualizado no banco offline.');
+    _mostrarSnack('✏️ "${editado.titulo}" atualizado no banco offline.');
     _recarregar();
   }
 
-  Future<void> _confirmarRemocao(PoliticoModel politico) async {
+  Future<void> _confirmarRemocao(JogoModel jogo) async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Remover político?'),
+        title: const Text('Remover jogo?'),
         content:
-            Text('Deseja remover "${politico.nome}" do banco de dados local?'),
+            Text('Deseja remover "${jogo.titulo}" do banco de dados local?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -113,9 +113,9 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
-    if (confirmar == true && politico.id != null) {
-      await _repository.delete(politico.id!);
-      _mostrarSnack('🗑️ "${politico.nome}" removido do banco offline.');
+    if (confirmar == true && jogo.id != null) {
+      await _repository.delete(jogo.id!);
+      _mostrarSnack('🗑️ "${jogo.titulo}" removido do banco offline.');
       _recarregar();
     }
   }
@@ -127,7 +127,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: theme.colorScheme.primaryContainer,
-        title: const Text('Portal Cidadão'),
+        title: const Text('Coleção de Jogos'),
         actions: [
           // Indicador visual de banco local ativo.
           Padding(
@@ -144,8 +144,7 @@ class _HomePageState extends State<HomePage> {
             tooltip: widget.isDarkMode
                 ? 'Mudar para Modo Claro'
                 : 'Mudar para Modo Escuro',
-            icon: Icon(
-                widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
+            icon: Icon(widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
             onPressed: widget.onAlternarTema,
           ),
         ],
@@ -158,7 +157,7 @@ class _HomePageState extends State<HomePage> {
             child: TextField(
               controller: _buscaController,
               decoration: InputDecoration(
-                hintText: 'Pesquisar por nome, partido ou UF...',
+                hintText: 'Pesquisar por título, plataforma ou gênero...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _termoBusca.isNotEmpty
                     ? IconButton(
@@ -181,8 +180,8 @@ class _HomePageState extends State<HomePage> {
           // FUTUREBUILDER — leitura assíncrona do banco com seus 4 estados.
           // ------------------------------------------------------------------
           Expanded(
-            child: FutureBuilder<List<PoliticoModel>>(
-              future: _futurePoliticos,
+            child: FutureBuilder<List<JogoModel>>(
+              future: _futureJogos,
               builder: (context, snapshot) {
                 // 1) CARREGANDO
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -199,25 +198,25 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 // Filtro de busca em memória.
-                final todos = snapshot.data ?? const <PoliticoModel>[];
+                final todos = snapshot.data ?? const <JogoModel>[];
                 final termo = _termoBusca.trim().toLowerCase();
                 final lista = termo.isEmpty
                     ? todos
                     : todos
-                        .where((p) =>
-                            p.nome.toLowerCase().contains(termo) ||
-                            p.partido.toLowerCase().contains(termo) ||
-                            p.uf.toLowerCase().contains(termo))
+                        .where((j) =>
+                            j.titulo.toLowerCase().contains(termo) ||
+                            j.plataforma.toLowerCase().contains(termo) ||
+                            j.genero.toLowerCase().contains(termo))
                         .toList();
 
                 // 3) VAZIO
                 if (lista.isEmpty) {
                   return EmptyState(
                     icone: termo.isEmpty
-                        ? Icons.smart_toy_outlined
+                        ? Icons.videogame_asset_outlined
                         : Icons.search_off,
                     titulo: termo.isEmpty
-                        ? 'Nenhum político salvo offline'
+                        ? 'Nenhum jogo salvo offline'
                         : 'Nenhum resultado para "$_termoBusca"',
                     subtitulo: termo.isEmpty
                         ? 'Toque no botão + para cadastrar o primeiro.'
@@ -230,11 +229,11 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 88),
                   itemCount: lista.length,
                   itemBuilder: (context, index) {
-                    final politico = lista[index];
-                    return PoliticoCard(
-                      politico: politico,
-                      onEditar: () => _editar(politico),
-                      onRemover: () => _confirmarRemocao(politico),
+                    final jogo = lista[index];
+                    return JogoCard(
+                      jogo: jogo,
+                      onEditar: () => _editar(jogo),
+                      onRemover: () => _confirmarRemocao(jogo),
                     );
                   },
                 );
@@ -246,7 +245,7 @@ class _HomePageState extends State<HomePage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _abrirFormulario,
         icon: const Icon(Icons.add),
-        label: const Text('Novo político'),
+        label: const Text('Novo jogo'),
       ),
     );
   }

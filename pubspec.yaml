@@ -1,5 +1,5 @@
 name: persistence_app
-description: "Portal Cidadão: Políticos Favoritos (Offline) — demonstração de persistência local com SQLite + SharedPreferences."
+description: "Minha Coleção de Jogos (Offline) — demonstração de persistência local com SQLite + SharedPreferences."
 publish_to: 'none'
 version: 1.0.0+1
 

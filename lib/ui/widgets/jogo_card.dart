@@ -1,20 +1,21 @@
 // =============================================================================
-// WIDGET — PoliticoCard
+// WIDGET — JogoCard
 // -----------------------------------------------------------------------------
-// Representa UM político na lista: Card + ListTile + avatar com a sigla do
-// partido + botão de lixeira. Recebe callbacks para não acoplar à HomePage.
+// Representa UM jogo na lista: Card + ListTile + avatar com a sigla da
+// plataforma + nota + botões de editar/remover. Recebe callbacks para não
+// acoplar à HomePage.
 // =============================================================================
 import 'package:flutter/material.dart';
-import '../../models/politico_model.dart';
+import '../../models/jogo_model.dart';
 
-class PoliticoCard extends StatelessWidget {
-  final PoliticoModel politico;
+class JogoCard extends StatelessWidget {
+  final JogoModel jogo;
   final VoidCallback onRemover;
   final VoidCallback onEditar;
 
-  const PoliticoCard({
+  const JogoCard({
     super.key,
-    required this.politico,
+    required this.jogo,
     required this.onRemover,
     required this.onEditar,
   });
@@ -33,19 +34,24 @@ class PoliticoCard extends StatelessWidget {
           backgroundColor: theme.colorScheme.primary,
           foregroundColor: theme.colorScheme.onPrimary,
           child: Text(
-            _siglaPartido(politico.partido),
+            siglaPlataforma(jogo.plataforma),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           ),
         ),
         title: Text(
-          politico.nome,
+          jogo.titulo,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text('${politico.partido} • ${politico.uf}'),
-        // Dois botões: editar (lápis) e remover (lixeira).
+        subtitle: Text('${jogo.plataforma} • ${jogo.genero}'),
+        // Nota + dois botões: editar (lápis) e remover (lixeira).
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(Icons.star, size: 18, color: Colors.amber.shade700),
+            Text(
+              '${jogo.nota}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             IconButton(
               tooltip: 'Editar',
               icon: Icon(Icons.edit_outlined, color: theme.colorScheme.primary),
@@ -62,10 +68,10 @@ class PoliticoCard extends StatelessWidget {
     );
   }
 
-  /// Gera sigla curta a partir do nome do partido para o avatar.
-  /// Ex.: "Partido Verde" -> "PV"; "PT" -> "PT".
-  static String _siglaPartido(String partido) {
-    final limpo = partido.trim();
+  /// Gera sigla curta a partir do nome da plataforma para o avatar.
+  /// Ex.: "Nintendo Switch" -> "NS"; "PS5" -> "PS"; "PC" -> "PC".
+  static String siglaPlataforma(String plataforma) {
+    final limpo = plataforma.trim();
     if (limpo.isEmpty) return '?';
     final palavras =
         limpo.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();

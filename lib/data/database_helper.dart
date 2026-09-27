@@ -24,9 +24,9 @@ class DatabaseHelper {
   static Database? _database;
 
   // Metadados centralizados (sem "strings mágicas" espalhadas).
-  static const String _dbName = 'portal_cidadao.db';
+  static const String _dbName = 'colecao_jogos.db';
   static const int _dbVersion = 1;
-  static const String tabelaPoliticos = 'politicos';
+  static const String tabelaJogos = 'jogos';
 
   /// Getter ASSÍNCRONO da conexão.
   /// Reutiliza o cache se já aberto; senão abre uma única vez.
@@ -51,11 +51,12 @@ class DatabaseHelper {
   /// Cria o schema na primeira execução.
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE $tabelaPoliticos (
+      CREATE TABLE $tabelaJogos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        partido TEXT NOT NULL,
-        uf TEXT NOT NULL
+        titulo TEXT NOT NULL,
+        plataforma TEXT NOT NULL,
+        genero TEXT NOT NULL,
+        nota INTEGER NOT NULL CHECK (nota BETWEEN 0 AND 10)
       )
     ''');
   }

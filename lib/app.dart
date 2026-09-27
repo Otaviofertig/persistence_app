@@ -1,32 +1,32 @@
 // =============================================================================
-// WIDGET RAIZ — PortalCidadaoApp
+// WIDGET RAIZ — ColecaoJogosApp
 // -----------------------------------------------------------------------------
 // Configura o MaterialApp e gerencia o estado do TEMA (claro/escuro),
 // persistindo cada alternância no SharedPreferences via ThemePreferences.
 // =============================================================================
 import 'package:flutter/material.dart';
 
-import 'data/i_politico_repository.dart';
+import 'data/i_jogo_repository.dart';
 import 'data/theme_preferences.dart';
 import 'ui/home_page.dart';
 
-class PortalCidadaoApp extends StatefulWidget {
+class ColecaoJogosApp extends StatefulWidget {
   final bool temaInicialEscuro;
 
   /// Repositório injetável (opcional). Usado nos testes de UI.
-  final IPoliticoRepository? repository;
+  final IJogoRepository? repository;
 
-  const PortalCidadaoApp({
+  const ColecaoJogosApp({
     super.key,
     required this.temaInicialEscuro,
     this.repository,
   });
 
   @override
-  State<PortalCidadaoApp> createState() => _PortalCidadaoAppState();
+  State<ColecaoJogosApp> createState() => _ColecaoJogosAppState();
 }
 
-class _PortalCidadaoAppState extends State<PortalCidadaoApp> {
+class _ColecaoJogosAppState extends State<ColecaoJogosApp> {
   final ThemePreferences _themePrefs = ThemePreferences();
   late bool _isDarkMode;
 
@@ -44,10 +44,10 @@ class _PortalCidadaoAppState extends State<PortalCidadaoApp> {
 
   @override
   Widget build(BuildContext context) {
-    const Color seed = Color(0xFF1565C0);
+    const Color seed = Color(0xFF6A1B9A);
 
     return MaterialApp(
-      title: 'Portal Cidadão',
+      title: 'Coleção de Jogos',
       debugShowCheckedModeBanner: false,
       themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(

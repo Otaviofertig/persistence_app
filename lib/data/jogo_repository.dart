@@ -1,49 +1,49 @@
 // =============================================================================
-// CAMADA DE DADOS — PoliticoRepository (padrão Repository)
+// CAMADA DE DADOS — JogoRepository (padrão Repository)
 // -----------------------------------------------------------------------------
 // Abstrai o SQLite da UI. A tela NÃO sabe que existe `sqflite` — ela só pede
 // "insere", "lista", "remove". Isso facilita testes e uma eventual troca de
 // fonte de dados (ex.: API, Hive) sem tocar na interface.
 // =============================================================================
-import '../models/politico_model.dart';
+import '../models/jogo_model.dart';
 import 'database_helper.dart';
-import 'i_politico_repository.dart';
+import 'i_jogo_repository.dart';
 
-class PoliticoRepository implements IPoliticoRepository {
+class JogoRepository implements IJogoRepository {
   final DatabaseHelper _helper;
 
   // Injeção de dependência com default para o Singleton (facilita testes).
-  PoliticoRepository({DatabaseHelper? helper})
+  JogoRepository({DatabaseHelper? helper})
       : _helper = helper ?? DatabaseHelper.instance;
 
-  /// CREATE — insere um político e retorna o id gerado.
+  /// CREATE — insere um jogo e retorna o id gerado.
   @override
-  Future<int> insert(PoliticoModel politico) async {
+  Future<int> insert(JogoModel jogo) async {
     final db = await _helper.database;
-    return db.insert(DatabaseHelper.tabelaPoliticos, politico.toMap());
+    return db.insert(DatabaseHelper.tabelaJogos, jogo.toMap());
   }
 
-  /// READ — lê todos os políticos ordenados por nome.
+  /// READ — lê todos os jogos ordenados por título.
   @override
-  Future<List<PoliticoModel>> getAll() async {
+  Future<List<JogoModel>> getAll() async {
     final db = await _helper.database;
     final linhas = await db.query(
-      DatabaseHelper.tabelaPoliticos,
-      orderBy: 'nome COLLATE NOCASE ASC',
+      DatabaseHelper.tabelaJogos,
+      orderBy: 'titulo COLLATE NOCASE ASC',
     );
     // Mapeia cada linha (Map) para um objeto do domínio.
-    return linhas.map(PoliticoModel.fromMap).toList();
+    return linhas.map(JogoModel.fromMap).toList();
   }
 
-  /// UPDATE — atualiza um político existente (pelo id). Retorna nº de linhas.
+  /// UPDATE — atualiza um jogo existente (pelo id). Retorna nº de linhas.
   @override
-  Future<int> update(PoliticoModel politico) async {
+  Future<int> update(JogoModel jogo) async {
     final db = await _helper.database;
     return db.update(
-      DatabaseHelper.tabelaPoliticos,
-      politico.toMap(),
+      DatabaseHelper.tabelaJogos,
+      jogo.toMap(),
       where: 'id = ?',
-      whereArgs: [politico.id],
+      whereArgs: [jogo.id],
     );
   }
 
@@ -52,7 +52,7 @@ class PoliticoRepository implements IPoliticoRepository {
   Future<int> delete(int id) async {
     final db = await _helper.database;
     return db.delete(
-      DatabaseHelper.tabelaPoliticos,
+      DatabaseHelper.tabelaJogos,
       where: 'id = ?',
       whereArgs: [id],
     );
